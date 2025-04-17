@@ -1,23 +1,21 @@
-#include "SparkFunLSM6DSO.h"  // For the motion sensor
-#include "Wire.h"             // For I2C communication
-#include <Arduino.h>          // Core Arduino functions
-#include <BLEDevice.h>        // Bluetooth Low Energy
-#include <BLE2902.h>          // BLE notifications
+#include "SparkFunLSM6DSO.h"
+#include "Wire.h"
+#include <Arduino.h>
+#include <BLEDevice.h>
+#include <BLE2902.h>
 
 // I2C pins for ESP32
 const byte I2C_SDA = 21;
 const byte I2C_SCL = 22;
 
-// BLE service and characteristic UUIDs
 const char* DEVICE_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 const char* STEP_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
 LSM6DSO motionSensor;
 BLECharacteristic *stepCharacteristic;
 
-// Step tracking variables
 int steps = 0;
-float threshold = 1.2;  // Adjust this value after testing
+float threshold = 1.2; // Adjust this value after testing
 bool aboveThreshold = false;
 
 void performCalibration() {
@@ -29,10 +27,10 @@ void performCalibration() {
     float x = motionSensor.readFloatAccelX();
     float y = motionSensor.readFloatAccelY();
     readingSum += sqrt(x * x + y * y);  // Calculate movement magnitude
-    delay(15);  // Short delay between readings
+    delay(15);
   }
 
-  steps = readingSum / 100;  
+  steps = readingSum / 100;
   Serial.print("Baseline: ");
   Serial.println(steps);
 }
@@ -40,8 +38,6 @@ void performCalibration() {
 void setupBLE() {
   // Initialize BLE with device name
   BLEDevice::init("StepTracker");
-  
-  // Create BLE service and characteristic
   BLEServer *server = BLEDevice::createServer();
   BLEService *service = server->createService(DEVICE_SERVICE_UUID);
 
@@ -49,9 +45,9 @@ void setupBLE() {
     STEP_CHARACTERISTIC_UUID,
     BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
   );
-  stepCharacteristic->addDescriptor(new BLE2902());  // Required for notifications
-  
-  // Start advertising to nearby devices
+  stepCharacteristic->addDescriptor(new BLE2902());
+  stepCharacteristic->setValue("0");
+
   service->start();
   BLEAdvertising *advertiser = BLEDevice::getAdvertising();
   advertiser->addServiceUUID(DEVICE_SERVICE_UUID);
@@ -63,18 +59,18 @@ void sendSteps() {
   char buffer[16];
   snprintf(buffer, sizeof(buffer), "%d", steps);
   stepCharacteristic->setValue(buffer);
-  stepCharacteristic->notify();  // Send update to connected devices
+  stepCharacteristic->notify();
 }
 
 void setup() {
   Serial.begin(115200);
   Wire.begin(I2C_SDA, I2C_SCL);
-  delay(50);  // Brief delay for I2C to stabilize
+  delay(50);
 
   // Check if motion sensor is connected
   if (!motionSensor.begin()) {
     Serial.println("IMU fail!");
-    while (1);  // Stop if sensor isn't found
+    while (1);
   }
 
   motionSensor.initialize(BASIC_SETTINGS);  // Default sensor settings
@@ -103,5 +99,5 @@ void loop() {
     aboveThreshold = false;
   }
 
-  delay(20); 
+  delay(20);
 }
